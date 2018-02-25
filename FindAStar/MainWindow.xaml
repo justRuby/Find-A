@@ -1,0 +1,23 @@
+﻿<Window x:Class="FindAStar.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FindAStar"
+        mc:Ignorable="d"
+        Title="Find A*" Height="400" Width="604" Background="White" Loaded="Window_Loaded" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Foreground="Black" WindowStyle="ThreeDBorderWindow">
+    <Grid Height="366">
+        <Grid x:Name="viewArrayGrid" Height="240" Margin="177,10,177,0" VerticalAlignment="Top" Background="#FF464646" Width="244"/>
+        <Grid HorizontalAlignment="Center" Height="24" Margin="10,259,10,0" VerticalAlignment="Top" Width="578" Background="#FF282828">
+            <Label x:Name="statusLabel" Content="Выберите режим!" HorizontalAlignment="Left" Margin="10,-3,0,0" VerticalAlignment="Top" Foreground="White"/>
+        </Grid>
+        <Button x:Name="borderSelectButton" HorizontalAlignment="Left" Margin="10,288,0,0" VerticalAlignment="Top" Width="40" Height="40" BorderBrush="{x:Null}" Foreground="{x:Null}" Background="#FF3278D2" Click="Button_Click"/>
+        <Button x:Name="startSelectButton" Content="" HorizontalAlignment="Left" Margin="55,288,0,0" VerticalAlignment="Top" Width="40" Height="40" BorderBrush="{x:Null}" Foreground="{x:Null}" Background="#FF46D432" Click="Button_Click"/>
+        <Button x:Name="endSelectButton" Content="" HorizontalAlignment="Left" Margin="100,288,0,0" VerticalAlignment="Top" Width="40" Height="40" BorderBrush="{x:Null}" Foreground="{x:Null}" Background="#FFD43232" Click="Button_Click"/>
+        <Button x:Name="clearSelectButton_Copy" Content="" HorizontalAlignment="Left" Margin="145,288,0,0" VerticalAlignment="Top" Width="40" Height="40" BorderBrush="{x:Null}" Foreground="{x:Null}" Background="#FF464646" Click="Button_Click"/>
+        <Button x:Name="findPathButton" Content="Построить путь" HorizontalAlignment="Left" Margin="190,288,0,0" VerticalAlignment="Top" Width="100" Height="40" BorderBrush="{x:Null}" Foreground="White" Background="#FF464646" Click="FindPathButton_Click"/>
+        <Button x:Name="clearFieldButton" Content="Очистить всё" HorizontalAlignment="Left" Margin="400,288,0,0" VerticalAlignment="Top" Width="100" Height="40" BorderBrush="{x:Null}" Foreground="White" Background="#FF464646" Click="СlearFieldButton_Click"/>
+        <Button x:Name="clearPathButton" Content="Очистить путь" HorizontalAlignment="Left" Margin="295,288,0,0" VerticalAlignment="Top" Width="100" Height="40" BorderBrush="{x:Null}" Foreground="White" Background="#FF464646" Click="ClearPathButton_Click"/>
+
+    </Grid>
+</Window>
