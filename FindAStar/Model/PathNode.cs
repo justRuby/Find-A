@@ -1,8 +1,11 @@
-﻿using System.Windows;
+﻿
+using System.Windows;
 
 namespace FindAStar.Model
 {
-    internal class PathNode
+    using FindAStar.Enumerators;
+
+    public class PathNode
     {
         // Координаты точки на карте.
         public Point Position { get; set; }
@@ -20,5 +23,6 @@ namespace FindAStar.Model
                 return this.PathLengthFromStart + this.HeuristicEstimatePathLength;
             }
         }
+        public bool StartOrDefault { get; set; }
     }
 }

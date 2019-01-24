@@ -7,39 +7,30 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-using FindAStar.Model;
 
 namespace FindAStar
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
+    using FindAStar.Extension;
+    using FindAStar.Model;
+    using FindAStar.Enumerators;
+
     public partial class MainWindow : Window
     {
-        private const int COUNT_BLOCKS_HEIGHT = 24;
-        private const int COUNT_BLOCKS_WIDTH = 24; //56
+        private const int MATRIX_SIZE = 24;
+        //private const int COUNT_BLOCKS_HEIGHT = 10;
+        //private const int COUNT_BLOCKS_WIDTH = 10;
+        private static ASCore aSCore;
 
-        //private Button[,] blocks;
-        //private Point[,] positions;
-        //private int[,] options;
+        private List<BlockModel> BlockList { get; set; }
+        private List<BlockModel> CurrentBlockList { get; set; }
+        private BlockModel TargetBlock { get; set; }
 
-        private BlockModel[,] blocks;
-        private BlockModel[] earlyBlock;
-        private int countStartBlock = 0, countEndBlock = 0;
-        private int selectedBlock;
-
-        /// <summary>
-        /// Gray - Свободный путь | 0
-        /// Orange - Старый Маршрут | 1
-        /// Blue - Преграда | 2
-        /// Green - Начало | 3
-        /// Red - Конец | 4
-        /// Yellow - Маршрут | 5
-        /// </summary>
+        private NodeType SelectedMode;
 
         public MainWindow()
         {
             InitializeComponent();
+            aSCore = ASCore.GetInstance();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -47,32 +38,20 @@ namespace FindAStar
             double left = 0;
             double top = 0;
             double indent = 0d;
-            //int count = COUNT_BLOCKS_HEIGHT * COUNT_BLOCKS_WIDTH;
 
-            //blocks = new List<BlockModel>(count)
-            //{
-            //    new BlockModel()
-            //    {
-            //        Block = new Button()
-            //    }
-            //};
+            BlockList = new List<BlockModel>();
+            CurrentBlockList = new List<BlockModel>();
 
-            //positions = new Point[COUNT_BLOCKS_HEIGHT, COUNT_BLOCKS_WIDTH];
-            //options = new int[COUNT_BLOCKS_HEIGHT, COUNT_BLOCKS_WIDTH];
-
-            blocks = new BlockModel[COUNT_BLOCKS_HEIGHT, COUNT_BLOCKS_WIDTH];
-            earlyBlock = new BlockModel[2];
-
-            for (int i = 0; i < COUNT_BLOCKS_HEIGHT; i++)
+            for (int i = 0; i < MATRIX_SIZE; i++)
             {
-                for (int j = 0; j < COUNT_BLOCKS_WIDTH; j++)
+                for (int j = 0; j < MATRIX_SIZE; j++)
                 {
-                    blocks[i, j] = new BlockModel()
-                    {
-                        Block = new Button()
+                    BlockModel blockModel = new BlockModel
+                    (
+                        new Button()
                         {
                             Name = "block_" + i + "_" + j,
-                            //Content = 0,
+                            //Content = i + j,
                             //Foreground = new SolidColorBrush(Color.FromArgb(100, 255, 255, 255)),
                             VerticalAlignment = VerticalAlignment.Top,
                             HorizontalAlignment = HorizontalAlignment.Left,
@@ -81,145 +60,113 @@ namespace FindAStar
                             Margin = new Thickness(left + indent, top + indent, 0, 0),
                             Background = new SolidColorBrush(Color.FromArgb(255, 20, 20, 20)),
                             BorderBrush = null
-                        }
-                    };
+                        },
+                        new Point(i, j),
+                        NodeType.Passable
+                    );
 
-                    blocks[i, j].Block.Click += Block_Click;
-
-                    blocks[i, j].Position = new Point(left + indent, top + indent);
-                    viewArrayGrid.Children.Add(blocks[i, j].Block);
+                    blockModel.Block.Click += BlockClick;
 
                     left += 10;
-                }
 
+                    BlockList.Add(blockModel);
+                    viewArrayGrid.Children.Add(blockModel.Block);
+                }
                 left = 0;
                 top += 10;
             }
-
-            //for (int i = 1; i < count + 1; i++)
-            //{
-            //    blocks.Add(new BlockModel());
-            //    blocks[i].Block = new Button()
-            //    {
-            //        Name = "block_" + i,
-            //        VerticalAlignment = VerticalAlignment.Top,
-            //        HorizontalAlignment = HorizontalAlignment.Left,
-            //        Width = 20,
-            //        Height = 20,
-            //        Margin = new Thickness(left + indent, top + indent, 0, 0),
-            //        Background = new SolidColorBrush(Color.FromArgb(255, 20, 20, 20)),
-            //        BorderBrush = null
-            //    };
-
-            //    blocks[i].Block.Click += Block_Click;
-
-            //    blocks[i].Position = new Point(left + indent, top + indent);
-            //    viewArrayGrid.Children.Add(blocks[i].Block);
-
-            //    left += 20;
-
-            //    if(i % COUNT_BLOCKS_WIDTH == 0)
-            //    {
-            //        left = 0;
-            //        top += 20;
-            //    }
-            //}
         }
 
-        private void Block_Click(object sender, RoutedEventArgs e)
+        public void BlockClick(object sender, RoutedEventArgs e)
         {
-            Button obj = sender as Button;
+            var block = BlockList.Where(x => x.Block == sender as Button).FirstOrDefault();
+            BlockModel findedObj;
 
-            for (int i = 0; i < COUNT_BLOCKS_HEIGHT; i++)
+            if (block == null)
+                return;
+
+            CheckAndRemoveItem(block);
+
+            switch (SelectedMode)
             {
-                for (int j = 0; j < COUNT_BLOCKS_WIDTH; j++)
-                {
-                    if (obj.Name != blocks[i,j].Block.Name)
-                        continue;
+                case NodeType.Passable:
+                    block.NType = NodeType.Passable;
+                    break;
 
-                    switch (selectedBlock)
+                case NodeType.Wall:
+                    block.NType = NodeType.Wall;
+                    break;
+
+                case NodeType.Target:
+
+                    if (block.NType == NodeType.Target)
+                        break;
+
+                    findedObj = BlockList.Where(x => x.NType == NodeType.Target).FirstOrDefault();
+                    if(findedObj != null)
                     {
-                        case 1:
-
-                            //Blue
-                            blocks[i, j].Option = 2;
-                            break;
-
-                        case 2:
-
-                            //Green
-                            if(countStartBlock == 1 && blocks[i,j] != earlyBlock[0])
-                            {
-                                GetIndex(earlyBlock[0].Block.Name, out int i2, out int j2);
-
-                                blocks[i2, j2].Option = 0;
-                                blocks[i2, j2].Block.Background = new SolidColorBrush(SetColor(0));
-
-                                blocks[i, j].Option = 3;
-                                earlyBlock[0] = blocks[i, j];
-                            }
-                            else
-                            {
-                                countStartBlock = 1;
-                                blocks[i, j].Option = 3;
-                                earlyBlock[0] = blocks[i, j];
-                            }
-                            break;
-
-                        case 3:
-
-                            //Red
-                            if (countEndBlock == 1)
-                            {
-                                GetIndex(earlyBlock[1].Block.Name, out int i2, out int j2);
-
-                                blocks[i2, j2].Option = 0;
-                                blocks[i2, j2].Block.Background = new SolidColorBrush(SetColor(0));
-
-                                blocks[i, j].Option = 4;
-                                earlyBlock[1] = blocks[i, j];
-                            }
-                            else
-                            {
-                                countEndBlock = 1;
-                                blocks[i, j].Option = 4;
-                                earlyBlock[1] = blocks[i, j];
-                            }
-                            break;
-
-                        default:
-
-                            //Gray
-                            if (blocks[i,j].Option == 3)
-                                countStartBlock = 0;
-
-                            if (blocks[i, j].Option == 4)
-                                countEndBlock = 0;
-
-                            blocks[i, j].Option = 0;
-                            break;
+                        block.NType = findedObj.NType;
+                        findedObj.NType = NodeType.Passable;
+                        TargetBlock = block;
+                    }
+                    else
+                    {
+                        block.NType = NodeType.Target;
+                        TargetBlock = block;
                     }
 
-                    blocks[i, j].Block.Background = new SolidColorBrush(SetColor(blocks[i, j].Option));
-                    return;
-                }
+                    break;
+
+                case NodeType.Current:
+
+                    block.NType = NodeType.Current;
+                    CurrentBlockList.Add(block);
+
+                    break;
+
+                default:
+                    break;
             }
 
-            //foreach (var item in search)
-            //{
-            //    if(item.Option < 3)
-            //    {
-            //        item.Option++;
-            //    }
-            //    else
-            //    {
-            //        item.Option = 0;
-            //    }
 
-            //    blocks[0] = item;
-            //    item.Block.Background = new SolidColorBrush(SetColor(item.Option));
-            //    break;
-            //}
+        }
+
+        private void CheckAndRemoveItem(BlockModel item)
+        {
+            BlockModel findedObj;
+
+            switch (item.NType)
+            {
+                case NodeType.Passable:
+                    break;
+                case NodeType.Wall:
+                    break;
+                case NodeType.Target:
+
+                    if (SelectedMode == NodeType.Target)
+                        break;
+
+                    TargetBlock.NType = NodeType.Passable;
+                    TargetBlock = null;
+
+                    break;
+                case NodeType.Current:
+
+                    if (SelectedMode == NodeType.Current)
+                        break;
+
+                    findedObj = CurrentBlockList.Where(x => x == item).FirstOrDefault();
+
+                    if (findedObj != null)
+                    {
+                        findedObj.NType = NodeType.Passable;
+                        CurrentBlockList.Remove(findedObj);
+                    }
+
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -229,23 +176,23 @@ namespace FindAStar
             switch (obj.Name)
             {
                 case "borderSelectButton":
-                    statusLabel.Content = "Выбран синий блок";
-                    selectedBlock = 1;
+                    statusLabel.Content = "Выбран режим преграды";
+                    SelectedMode = NodeType.Wall;
                     break;
 
                 case "startSelectButton":
-                    selectedBlock = 2;
-                    statusLabel.Content = "Выбран зеленый блок";
+                    statusLabel.Content = "Выбран режим стартовой позиции";
+                    SelectedMode = NodeType.Current;
                     break;
 
                 case "endSelectButton":
-                    statusLabel.Content = "Выбран красный блок";
-                    selectedBlock = 3;
+                    statusLabel.Content = "Выбран режим цели";
+                    SelectedMode = NodeType.Target;
                     break;
 
                 default:
-                    statusLabel.Content = "Выбран режим удаления";
-                    selectedBlock = 0;
+                    statusLabel.Content = "Выбран режим проходимого путя";
+                    SelectedMode = NodeType.Passable;
                     break;
             }
         }
@@ -253,245 +200,72 @@ namespace FindAStar
         private async void FindPathButton_Click(object sender, RoutedEventArgs e)
         {
             Point startPosition = new Point(-1, -1);
-            Point endPosition = new Point(-1, -1);
-            var field = new int[COUNT_BLOCKS_HEIGHT, COUNT_BLOCKS_WIDTH];
+            Point targetPosition = new Point(-1, -1);
+            var field = new int[MATRIX_SIZE, MATRIX_SIZE];
+            List<Point> wallList = new List<Point>();
 
-            for (int i = 0; i < COUNT_BLOCKS_HEIGHT; i++)
+            targetPosition = BlockList.Where(x => x.NType == NodeType.Target).Select(x => x.Position).FirstOrDefault();
+
+            if (targetPosition == null)
+                return;
+
+            var searchWall = BlockList.Where(x => x.NType == NodeType.Wall).Select(x => x.Position);
+            foreach (var item in searchWall)
+                wallList.Add(item);
+
+            int countPaths = CurrentBlockList.Count;
+            List<Point>[] PathsList = new List<Point>[countPaths];
+
+            for (int i = 0; i < countPaths; i++)
             {
-                for (int j = 0; j < COUNT_BLOCKS_WIDTH; j++)
-                {
-                    field[i, j] = blocks[i, j].Option;
+                startPosition = CurrentBlockList[i].Position;
+                await ViewPass(await aSCore.FindPath(field, startPosition, targetPosition, wallList));
+            }
+        }
 
-                    if (blocks[i, j].Option == 3)
-                    {
-                        startPosition = blocks[i, j].Position;
-                        field[i, j] = 0;
-                    }
-                        
-                    if (blocks[i, j].Option == 4)
-                    {
-                        endPosition = blocks[i, j].Position;
-                        field[i, j] = 0;
-                    }
-                }
+        private async Task<bool> ViewPass(List<Point> pointList)
+        {
+            var searchBlock = BlockList.Where((x) =>
+            {
+                return ComparePoints(pointList, x.Position);
+            });
+            foreach (var item in searchBlock)
+            {
+                item.NType = NodeType.Path;
             }
 
-            startPosition = new Point(startPosition.X / 10, startPosition.Y / 10);
-            endPosition = new Point(endPosition.X / 10, endPosition.Y / 10);
+            return await Task.FromResult(true);
+        }
 
-            if (startPosition.X != -1 && endPosition.X != -1)
+        private bool ComparePoints(List<Point> list, Point x)
+        {
+            var searchComp = list.Where(p => p == x);
+            foreach (var item in searchComp)
             {
-                var path = await Task.Run( async () => await FindPath(field, startPosition, endPosition));
-
-                if(path != null)
-                ColorizePath(path);
+                return true;
             }
+
+            return false;
         }
 
         private void СlearFieldButton_Click(object sender, RoutedEventArgs e)
         {
-            for (int i = 0; i < COUNT_BLOCKS_HEIGHT; i++)
+            CurrentBlockList.Clear();
+            TargetBlock = null;
+
+            foreach (var item in BlockList)
             {
-                for (int j = 0; j < COUNT_BLOCKS_WIDTH; j++)
-                {
-                    blocks[i, j].Block.Background = new SolidColorBrush(SetColor(0));
-                    blocks[i, j].Option = 0;
-                }
+                item.NType = NodeType.Passable;
             }
         }
 
         private void ClearPathButton_Click(object sender, RoutedEventArgs e)
         {
-            for (int i = 0; i < COUNT_BLOCKS_HEIGHT; i++)
+            foreach (var item in BlockList)
             {
-                for (int j = 0; j < COUNT_BLOCKS_WIDTH; j++)
-                {
-                    if(blocks[i,j].Option == 5)
-                    {
-                        blocks[i, j].Block.Background = new SolidColorBrush(SetColor(0));
-                        blocks[i, j].Option = 0;
-                    }
-                }
+                if (item.NType == NodeType.Path)
+                    item.NType = NodeType.Passable;
             }
         }
-
-        private int GetIndex(string name, out int i, out int j)
-        {
-            i = 0;
-            j = 0;
-
-            var temp = name.Remove(0, 6);
-            var array = temp.Split(new char[] { '_' });
-
-            int.TryParse(array[0], out i);
-            int.TryParse(array[1], out j);
-
-            return 0;
-        }
-
-        private void ColorizePath(List<Point> path)
-        {
-            List<Point> temp = new List<Point>();
-
-            for (int i = 1; i < path.Count - 1; i++)
-                temp.Add(new Point(path[i].X * 10, path[i].Y * 10));
-            
-            for (int i = 0; i < COUNT_BLOCKS_HEIGHT; i++)
-            {
-                for (int j = 0; j < COUNT_BLOCKS_WIDTH; j++)
-                {
-                    for (int p = 0; p < temp.Count; p++)
-                    {
-                        if (temp[p] == blocks[i, j].Position)
-                        {
-                            blocks[i, j].Option = 5;
-                            blocks[i, j].Block.Background = new SolidColorBrush(SetColor(5));
-                        }
-                    }
-                }
-            }
-        }
-
-        private Color SetColor(int item)
-        {
-            Color content = new Color();
-            switch (item)
-            {
-                case 2:
-                    content = Color.FromArgb(255, 50, 120, 210);
-                    break;
-
-                case 3:
-                    content = Color.FromArgb(255, 70, 212, 50);
-                    break;
-
-                case 4:
-                    content = Color.FromArgb(255, 212, 50, 50);
-                    break;
-
-                case 5:
-                    content = Color.FromArgb(255, 228, 228, 0);
-                    break;
-
-                default:
-                    content = Color.FromArgb(255, 20, 20, 20);
-                    break;
-            }
-
-            return content;
-        }
-
-        #region Алгоритм поиска А*
-
-        private async Task<List<Point>> FindPath(int[,] field, Point start, Point goal)
-        {
-            var closedSet = new Collection<PathNode>();
-            var openSet = new Collection<PathNode>();
-
-            PathNode startNode = new PathNode()
-            {
-                Position = start,
-                CameFrom = null,
-                PathLengthFromStart = 0,
-                HeuristicEstimatePathLength = GetHeuristicPathLength(start, goal)
-            };
-            openSet.Add(startNode);
-            while (openSet.Count > 0)
-            {
-                var currentNode = openSet.OrderBy(node =>
-                  node.EstimateFullPathLength).First();
-
-                if (currentNode.Position == goal)
-                    return await Task.FromResult(GetPathForNode(currentNode));
-
-                openSet.Remove(currentNode);
-                closedSet.Add(currentNode);
-
-                foreach (var neighbourNode in GetNeighbours(currentNode, goal, field))
-                {
-                    if (closedSet.Count(node => node.Position == neighbourNode.Position) > 0)
-                        continue;
-                    var openNode = openSet.FirstOrDefault(node =>
-                      node.Position == neighbourNode.Position);
-
-                    if (openNode == null)
-                        openSet.Add(neighbourNode);
-                    else if (openNode.PathLengthFromStart > neighbourNode.PathLengthFromStart)
-                    {
-                        openNode.CameFrom = currentNode;
-                        openNode.PathLengthFromStart = neighbourNode.PathLengthFromStart;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private int GetDistanceBetweenNeighbours()
-        {
-            return 1;
-        }
-
-        private int GetHeuristicPathLength(Point from, Point to)
-        {
-            
-            //Полный перебор
-            //var DeltaX = Math.Abs(from.X - to.X);
-            //var DeltaY = Math.Abs(from.Y - to.Y);
-            //var Dist = Math.Sqrt(DeltaX * DeltaX + DeltaY * DeltaY);
-
-            //return Convert.ToInt32(Math.Round(Dist));
-
-            return Convert.ToInt32(Math.Abs(from.X - to.X) + Math.Abs(from.Y - to.Y));
-        }
-
-        private Collection<PathNode> GetNeighbours(PathNode pathNode, Point goal, int[,] field)
-        {
-            var result = new Collection<PathNode>();
-
-            Point[] neighbourPoints = new Point[4];
-            neighbourPoints[0] = new Point(pathNode.Position.X + 1, pathNode.Position.Y);
-            neighbourPoints[1] = new Point(pathNode.Position.X - 1, pathNode.Position.Y);
-            neighbourPoints[2] = new Point(pathNode.Position.X, pathNode.Position.Y + 1);
-            neighbourPoints[3] = new Point(pathNode.Position.X, pathNode.Position.Y - 1);
-
-            foreach (var point in neighbourPoints)
-            {
-                if (point.X < 0 || point.X >= field.GetLength(0))
-                    continue;
-                if (point.Y < 0 || point.Y >= field.GetLength(1))
-                    continue;
-
-                if ((field[Convert.ToInt32(point.X), Convert.ToInt32(point.Y)] != 0)
-                    && (field[Convert.ToInt32(point.X), Convert.ToInt32(point.Y)] != 1))
-                    continue;
-
-                var neighbourNode = new PathNode()
-                {
-                    Position = point,
-                    CameFrom = pathNode,
-                    PathLengthFromStart = pathNode.PathLengthFromStart +
-                    GetDistanceBetweenNeighbours(),
-                    HeuristicEstimatePathLength = GetHeuristicPathLength(point, goal)
-                };
-                result.Add(neighbourNode);
-            }
-            return result;
-        }
-
-        private List<Point> GetPathForNode(PathNode pathNode)
-        {
-            var result = new List<Point>();
-            var currentNode = pathNode;
-            while (currentNode != null)
-            {
-                result.Add(currentNode.Position);
-                currentNode = currentNode.CameFrom;
-            }
-            result.Reverse();
-            return result;
-        }
-
-        #endregion
     }
 }
