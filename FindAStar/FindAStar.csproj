@@ -71,6 +71,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Model\ASpeedModifier.cs" />
     <Compile Include="Model\BlockModel.cs" />
     <Compile Include="Model\PathNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">

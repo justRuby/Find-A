@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-
+using System.Diagnostics;
 
 namespace FindAStar
 {
@@ -17,8 +17,6 @@ namespace FindAStar
     public partial class MainWindow : Window
     {
         private const int MATRIX_SIZE = 24;
-        //private const int COUNT_BLOCKS_HEIGHT = 10;
-        //private const int COUNT_BLOCKS_WIDTH = 10;
         private static ASCore aSCore;
 
         private List<BlockModel> BlockList { get; set; }
@@ -44,7 +42,7 @@ namespace FindAStar
 
             for (int i = 0; i < MATRIX_SIZE; i++)
             {
-                for (int j = 0; j < MATRIX_SIZE; j++)
+                for (int j = 0; j < MATRIX_SIZE * 2; j++)
                 {
                     BlockModel blockModel = new BlockModel
                     (
@@ -201,7 +199,7 @@ namespace FindAStar
         {
             Point startPosition = new Point(-1, -1);
             Point targetPosition = new Point(-1, -1);
-            var field = new int[MATRIX_SIZE, MATRIX_SIZE];
+            var field = new int[MATRIX_SIZE, MATRIX_SIZE * 2];
             List<Point> wallList = new List<Point>();
 
             targetPosition = BlockList.Where(x => x.NType == NodeType.Target).Select(x => x.Position).FirstOrDefault();
@@ -216,21 +214,64 @@ namespace FindAStar
             int countPaths = CurrentBlockList.Count;
             List<Point>[] PathsList = new List<Point>[countPaths];
 
-            for (int i = 0; i < countPaths; i++)
+            ASpeedModifier speedModifier = new ASpeedModifier()
             {
-                startPosition = CurrentBlockList[i].Position;
-                await ViewPass(await aSCore.FindPath(field, startPosition, targetPosition, wallList));
-            }
+                SearchDelayInMilliseconds = 10,
+                ViewDelayInMilliseconds = 20
+            };
+
+            List<List<Point>> pathListArray = new List<List<Point>>();
+
+            long timeElapseWithDisplay = 0;
+            long timeElapseWithoutDisplay = 0;
+
+            var tasks = CurrentBlockList.Select(async (x) =>
+               {
+                   var watchWithDisplay = Stopwatch.StartNew();
+                   var watchWithoutDisplay = Stopwatch.StartNew();
+
+                   await aSCore.FindPathWithoutDisplayAsync(field, startPosition, targetPosition, wallList)
+                       .ContinueWith(t => watchWithoutDisplay.Stop());
+
+                   pathListArray.Add(await aSCore.FindPathAsync(field, x.Position, targetPosition, wallList, BlockList, speedModifier));
+
+                   watchWithDisplay.Stop();
+
+                   timeElapseWithDisplay += watchWithDisplay.ElapsedMilliseconds;
+                   timeElapseWithoutDisplay += watchWithoutDisplay.ElapsedMilliseconds;
+               });
+
+            await Task.WhenAll(tasks);
+
+            //Тест
+            BlockList.ForEach((x) =>
+            {
+                if (x.NType == NodeType.SearchPath)
+                    x.NType = NodeType.Passable;
+            });
+
+            pathListArray.ForEach(async x => await ViewPass(x, speedModifier));
+
+            elapsedTimeLabel.Content = " Скорость: " + Math.Round((double)timeElapseWithoutDisplay / timeElapseWithDisplay, 4)
+                                     + " Всего: " + timeElapseWithDisplay
+                                     + " мс. | Всего за поиск: " + timeElapseWithoutDisplay
+                                     + " мс.";
         }
 
-        private async Task<bool> ViewPass(List<Point> pointList)
+        private async Task<bool> ViewPass(List<Point> pointList, ASpeedModifier modifier)
         {
+            if(pointList == null)
+                return false;
+
             var searchBlock = BlockList.Where((x) =>
             {
+                
                 return ComparePoints(pointList, x.Position);
             });
             foreach (var item in searchBlock)
             {
+                modifier.TimePassedForView += modifier.ViewDelayInMilliseconds;
+                await Task.Delay(modifier.ViewDelayInMilliseconds);
                 item.NType = NodeType.Path;
             }
 

@@ -7,9 +7,10 @@
         mc:Ignorable="d"
         Title="Find A*" Height="400" Width="604" Background="White" Loaded="Window_Loaded" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Foreground="Black" WindowStyle="ThreeDBorderWindow">
     <Grid Height="366">
-        <Grid x:Name="viewArrayGrid" Height="240" Margin="177,10,177,0" VerticalAlignment="Top" Background="#FF464646" Width="244"/>
+        <Grid x:Name="viewArrayGrid" Height="240" Margin="0,10,0,0" VerticalAlignment="Top" Background="#FF464646" Width="480"/>
         <Grid HorizontalAlignment="Center" Height="24" Margin="10,259,10,0" VerticalAlignment="Top" Width="578" Background="#FF282828">
             <Label x:Name="statusLabel" Content="Выберите режим!" HorizontalAlignment="Left" Margin="10,-3,0,0" VerticalAlignment="Top" Foreground="White"/>
+            <Label x:Name="elapsedTimeLabel" HorizontalAlignment="Right" Foreground="White" Margin="0,0,10,0"/>
         </Grid>
         <Button x:Name="borderSelectButton" HorizontalAlignment="Left" Margin="10,288,0,0" VerticalAlignment="Top" Width="40" Height="40" BorderBrush="{x:Null}" Foreground="{x:Null}" Background="#FF3278D2" Click="Button_Click"/>
         <Button x:Name="startSelectButton" Content="" HorizontalAlignment="Left" Margin="55,288,0,0" VerticalAlignment="Top" Width="40" Height="40" BorderBrush="{x:Null}" Foreground="{x:Null}" Background="#FF46D432" Click="Button_Click"/>

@@ -7,6 +7,7 @@ namespace FindAStar.Enumerators
         Wall,
         Target,
         Current,
-        Path
+        Path,
+        SearchPath
     }
 }

@@ -31,8 +31,7 @@ namespace FindAStar.Extension
             }
             return _instance;
         }
-
-        public async Task<List<Point>> FindPath(int[,] field, Point start, Point goal, List<Point> wall)
+        public async Task<List<Point>> FindPathWithoutDisplayAsync(int[,] field, Point start, Point goal, List<Point> wall)
         {
             var closedSet = new Collection<PathNode>();
             var openSet = new Collection<PathNode>();
@@ -55,6 +54,63 @@ namespace FindAStar.Extension
                 if (currentNode.Position == goal)
                 {
                     currentNode.StartOrDefault = true;
+
+                    return await Task.FromResult(await GetPathForNode(currentNode));
+                }
+
+                openSet.Remove(currentNode);
+                closedSet.Add(currentNode);
+
+                foreach (var neighbourNode in await GetNeighbours(currentNode, goal, field))
+                {
+
+
+                    if (closedSet.Count(node => node.Position == neighbourNode.Position) > 0)
+                        continue;
+
+                    var openNode = openSet.FirstOrDefault(node => node.Position == neighbourNode.Position);
+
+                    if (wall.Exists(x => x == neighbourNode.Position))
+                        continue;
+
+                    if (openNode == null)
+                        openSet.Add(neighbourNode);
+                    else if (openNode.PathLengthFromStart > neighbourNode.PathLengthFromStart)
+                    {
+                        openNode.CameFrom = currentNode;
+                        openNode.PathLengthFromStart = neighbourNode.PathLengthFromStart;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+
+        public async Task<List<Point>> FindPathAsync(int[,] field, Point start, Point goal, List<Point> wall, List<BlockModel> blockModels, ASpeedModifier modifier)
+        {
+            var closedSet = new Collection<PathNode>();
+            var openSet = new Collection<PathNode>();
+
+            PathNode startNode = new PathNode()
+            {
+                Position = start,
+                CameFrom = null,
+                PathLengthFromStart = 0,
+                HeuristicEstimatePathLength = await GetHeuristicPathLength(start, goal),
+                StartOrDefault = true
+            };
+            openSet.Add(startNode);
+
+            while (openSet.Count > 0)
+            {
+                var currentNode = openSet.OrderBy(node =>
+                  node.EstimateFullPathLength).First();
+
+                if (currentNode.Position == goal)
+                {
+                    currentNode.StartOrDefault = true;
+
                     return await Task.FromResult(await GetPathForNode(currentNode));
                 }
                     
@@ -63,21 +119,27 @@ namespace FindAStar.Extension
 
                 foreach (var neighbourNode in await GetNeighbours(currentNode, goal, field))
                 {
+
+                    modifier.TimePassedForSearch += modifier.SearchDelayInMilliseconds;
+
                     if (closedSet.Count(node => node.Position == neighbourNode.Position) > 0)
                         continue;
 
                     var openNode = openSet.FirstOrDefault(node => node.Position == neighbourNode.Position);
 
-                    bool isExist = false;
-                    var searchWall = wall.Where(x => x == neighbourNode.Position);
-                    foreach (var item in searchWall)
-                    {
-                        isExist = true;
-                        break;
-                    }
-
-                    if (isExist)
+                    if (wall.Exists(x => x == neighbourNode.Position))
                         continue;
+
+                    await Task.Delay(modifier.SearchDelayInMilliseconds);
+
+                    //Тест
+                    blockModels.ForEach((x) =>
+                    {
+                        if (x.Position == neighbourNode.Position && (x.NType != NodeType.Target && x.NType != NodeType.Current))
+                        {
+                            x.NType = NodeType.SearchPath;
+                        }
+                    });
 
                     if (openNode == null)
                         openSet.Add(neighbourNode);

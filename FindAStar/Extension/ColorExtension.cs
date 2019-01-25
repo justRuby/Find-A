@@ -38,6 +38,10 @@ namespace FindAStar.Extension
                     content = Color.FromArgb(255, 228, 228, 0);
                     break;
 
+                case NodeType.SearchPath:
+                    content = Color.FromArgb(255, 255, 140, 0);
+                    break;
+
                 default:
                     break;
             }
